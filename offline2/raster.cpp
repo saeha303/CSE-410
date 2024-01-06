@@ -16,7 +16,7 @@ int main()
     Matrix M;
     M.buildIdentityMat();
     stack<Matrix> st;
-    st.push(M);
+    // st.push(M);
     while (true)
     {
         string cmd;
@@ -26,9 +26,9 @@ int main()
             count++;
             Point p1, p2, p3;
             fin >> p1 >> p2 >> p3;
-            p1 = st.top() * p1;
-            p2 = st.top() * p2;
-            p3 = st.top() * p3;
+            p1 = M * p1;
+            p2 = M * p2;
+            p3 = M * p3;
             fout << p1 << endl;
             fout << p2 << endl;
             fout << p3 << endl;
@@ -40,9 +40,9 @@ int main()
             fin >> p1;
             Matrix temp;
             temp.buildTranslationMat(p1);
-            Matrix mat = st.top() * temp;
-            st.pop();
-            st.push(mat);
+            M = M * temp;
+            // st.pop();
+            // st.push(mat);
         }
         else if (cmd == "scale")
         {
@@ -50,9 +50,9 @@ int main()
             fin >> p1;
             Matrix temp;
             temp.buildScalingMat(p1);
-            Matrix mat = st.top() * temp;
-            st.pop();
-            st.push(mat);
+            M = M * temp;
+            // st.pop();
+            // st.push(mat);
         }
         else if (cmd == "rotate")
         {
@@ -62,13 +62,14 @@ int main()
             fin >> p1;
             Matrix temp;
             temp.buildRotationMat(angle, p1);
-            Matrix mat = st.top() * temp;
-            st.pop();
-            st.push(mat);
+            M = M * temp;
+            // st.pop();
+            // st.push(mat);
         }
         else if (cmd == "push")
         {
-            st.push(st.top());
+            Matrix temp=M;
+            st.push(temp);
         }
         else if (cmd == "pop")
         {
@@ -77,7 +78,7 @@ int main()
                 cout << "Stack is empty" << endl;
                 return 0;
             }
-
+            M=st.top();
             st.pop();
         }
         else if (cmd == "end")
@@ -245,13 +246,6 @@ int main()
             {
                 right_intersecting_x = maxX;
             }
-            
-            // left_intersecting_z = right_intersecting_z + ((left_intersecting_z - right_intersecting_z) * (left_intersecting_x - org_left_x)) / (org_left_x - org_right_x);
-            // right_intersecting_z = right_intersecting_z + ((left_intersecting_z - right_intersecting_z) * (right_intersecting_x - org_right_x)) / (org_left_x - org_right_x);
-            // if(left_intersecting_x>right_intersecting_x){
-            //     swap(left_intersecting_x,right_intersecting_x);
-            //     swap(left_intersecting_z,right_intersecting_z);
-            // }
             // fout<<left_intersecting_x<<" "<<right_intersecting_x<<" "<<left_intersecting_z<<" "<<right_intersecting_z<<'\n';
             
             int leftScanLineCol = round((left_intersecting_x - xMinCenter) / dx);

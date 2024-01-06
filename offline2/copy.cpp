@@ -1,292 +1,297 @@
-#include<bits/stdc++.h>
-using namespace std;
-#include "headers.h"
+#include "utils.cpp"
 #include "bitmap_image.hpp"
-
-int main(){
-
-
-    /*
-        stage 1
-    */
-    ifstream fin("scene.txt");
-    ofstream fout("stage1.txt");
-    
+using namespace std;
+// int counter=0;
+int main()
+{
     Point eye, look, up;
     double fovY, aspectRatio, near, far;
-    fin>>eye>>look>>up;
-    fin>>fovY>>aspectRatio>>near>>far;
+    int count = 0;
+    ifstream fin("scene.txt");
+    ofstream fout("stage1.txt");
+    fin >> eye >> look >> up;
+    fin >> fovY >> aspectRatio >> near >> far;
 
-    stack<Matrix> s;
-    Matrix I;
-    I.identity();
-    s.push(I);
-
-    string command;
-    while(fin>>command){
-        if( command == "triangle" ){
-            Triangle t;
-            fin>>t;
-            t = s.top()*t;
-            fout<<t;
-            fout<<endl;
-        } else if( command == "translate" ){
-            Point p;
-            fin>>p;
-            Matrix m;
-            m.translate(p);
-            s.top() = s.top()*m;
-        } else if( command == "scale" ){
-            Point p;
-            fin>>p;
-            Matrix m;
-            m.scale(p);
-            s.top() = s.top()*m;
-        } else if( command == "rotate" ){
-            Point p;
-            double theta;
-            fin>>theta>>p;
-            theta = theta*PI/180.0;
-            Matrix m;
-            m.rotate(p, theta);
-            s.top() = s.top()*m;
-        } else if( command == "push" ){
-            s.push(s.top());
-        } else if( command == "pop" ){
-            s.pop();
-        } else if( command == "end" ){
+    // stage 1
+    Matrix M;
+    M.buildIdentityMat();
+    stack<Matrix> st;
+    // st.push(M);
+    while (true)
+    {
+        string cmd;
+        fin >> cmd;
+        if (cmd == "triangle")
+        {
+            count++;
+            Point p1, p2, p3;
+            fin >> p1 >> p2 >> p3;
+            p1 = M * p1;
+            p2 = M * p2;
+            p3 = M * p3;
+            fout << p1 << endl;
+            fout << p2 << endl;
+            fout << p3 << endl;
+            fout << endl;
+        }
+        else if (cmd == "translate")
+        {
+            Point p1;
+            fin >> p1;
+            Matrix temp;
+            temp.buildTranslationMat(p1);
+            M = M * temp;
+            // st.pop();
+            // st.push(mat);
+        }
+        else if (cmd == "scale")
+        {
+            Point p1;
+            fin >> p1;
+            Matrix temp;
+            temp.buildScalingMat(p1);
+            M = M * temp;
+            // st.pop();
+            // st.push(mat);
+        }
+        else if (cmd == "rotate")
+        {
+            double angle;
+            Point p1;
+            fin >> angle;
+            fin >> p1;
+            Matrix temp;
+            temp.buildRotationMat(angle, p1);
+            M = M * temp;
+            // st.pop();
+            // st.push(mat);
+        }
+        else if (cmd == "push")
+        {
+            Matrix temp=M;
+            st.push(temp);
+        }
+        else if (cmd == "pop")
+        {
+            if (st.empty())
+            {
+                cout << "Stack is empty" << endl;
+                return 0;
+            }
+            M=st.top();
+            st.pop();
+        }
+        else if (cmd == "end")
+        {
+            break;
+        }
+        else
+        {
+            cout << cmd << ": No such command" << endl;
             break;
         }
     }
-   
-    /*
-        stage 2
-    */
+
     fin.close();
     fout.close();
+
+    Matrix temp;
+    // stage 2
     fin.open("stage1.txt");
     fout.open("stage2.txt");
-
-    Point l,r,u;
-    l = look - eye;
+    Point l = look - eye;
     l.normalize();
-    r = l^up;
+    Point r = l & up;
     r.normalize();
-    u = r^l;
+    Point u = r & l;
     u.normalize();
-    Matrix T;
-    Point eyei;
-    eyei = eye*-1;
-    T.translate(eyei);
-    Matrix R;
-    R.identity();
-    R.matrix[0][0] = r.x; R.matrix[0][1] = r.y; R.matrix[0][2] = r.z;
-    R.matrix[1][0] = u.x; R.matrix[1][1] = u.y; R.matrix[1][2] = u.z;
-    R.matrix[2][0] = -l.x; R.matrix[2][1] = -l.y; R.matrix[2][2] = -l.z;
-
-    Matrix V = R*T;
-
-    Triangle triangle;
-    while(fin>>triangle){
-        triangle = V*triangle;
-        fout<<triangle<<endl;
+    temp.buildViewMat(eye, r, u, l);
+    for (int i = 0; i < count; i++)
+    {
+        Point p1, p2, p3;
+        fin >> p1 >> p2 >> p3;
+        p1 = temp * p1;
+        p2 = temp * p2;
+        p3 = temp * p3;
+        fout << p1 << endl;
+        fout << p2 << endl;
+        fout << p3 << endl;
+        fout << endl;
     }
-
     fin.close();
     fout.close();
-    /*
-        stage 3
-    */
+
+    // stage 3
     fin.open("stage2.txt");
     fout.open("stage3.txt");
-
-    double fovX = fovY*aspectRatio;
-    double t = near*tan(fovY*PI/360.0);
-    double r2 = near*tan(fovX*PI/360.0);
-
-    Matrix P;
-    P.matrix[0][0] = near/r2;
-    P.matrix[1][1] = near/t;
-    P.matrix[2][2] = -(far+near)/(far-near);
-    P.matrix[2][3] = -(2.0*far*near)/(far-near);
-    P.matrix[3][2] = -1.0; 
-
-   
-    while(fin>>triangle){
-        triangle = P*triangle;
-        fout<<triangle<<endl;
+    double fovX = fovY * aspectRatio;
+    double rad_angle = (fovY / 2) * pi / 180.0;
+    double t = near * tan(rad_angle);
+    rad_angle = (fovX / 2) * pi / 180.0;
+    double r_ = near * tan(rad_angle);
+    temp.buildProjectionMat(near, far, r_, t);
+    for (int i = 0; i < count; i++)
+    {
+        Point p1, p2, p3;
+        fin >> p1 >> p2 >> p3;
+        p1 = temp * p1;
+        p2 = temp * p2;
+        p3 = temp * p3;
+        fout << p1 << endl;
+        fout << p2 << endl;
+        fout << p3 << endl;
+        fout << endl;
     }
-
     fin.close();
     fout.close();
 
-    /*
-        stage 4: Clipping and Scan Conversion using Z-Buffer
-    */
-
-    fin.open("stage3.txt");
-    fout.open("z_buffer.txt");
-    ifstream fin2("config.txt");
+    // stage 4
+    // 1. Read data
+    fin.open("config.txt");
     int screen_width, screen_height;
-    fin2>>screen_width>>screen_height;
-    double box_left=-1, box_right=1, box_bottom=-1, box_top=1;
-    double Z_min=-1, Z_max=1;
-    double dx = (box_right-box_left)/screen_width;
-    double dy = (box_top-box_bottom)/screen_height;
-    double Top_Y = box_top - dy/2.0;
-    double Left_X = box_left + dx/2.0;
-
-
-    // initialize z-buffer and frame buffer
-
-    vector< vector<double> > z_buffer(screen_height, vector<double>(screen_width, Z_max));
-    for(int i=0; i<screen_height; i++){
-        for(int j=0; j<screen_width; j++){
-            z_buffer[i][j] = Z_max;
-        }
-    }
-
-    bitmap_image image(screen_width, screen_height);
-    image.set_all_channels(0, 0, 0);
-
-    int count=0;
-    while(fin>>triangle){
-        count++;
-        
-        triangle.sort();
-        triangle.recolor();
-        // clipping
-        double min_y = triangle.a.y;
-        double max_y = triangle.b.y;
-
-        //cout<<"y range "<<min_y<<" "<<max_y<<endl;
-       
-        min_y = max(min_y, box_bottom);
-        max_y = min(max_y, box_top);
-        // cout<<min_y<<" "<<max_y<<'\n';
-        // scan conversion
-
-        //cout<<"y range "<<min_y<<" "<<max_y<<endl;
-        for(double y=min_y; y<=max_y; y+=dy){
-           
-            // compute min_x and max_x for this row
-            double min_x = 0;
-            double max_x = -1;
-            double min_z = 0;
-            double max_z = -1;
-
-
-            if( triangle.b.y != triangle.a.y and triangle.a.y != triangle.c.y ){
-                min_x = triangle.a.x + (triangle.b.x-triangle.a.x)*(y-triangle.a.y)/(triangle.b.y-triangle.a.y);
-                max_x = triangle.a.x + (triangle.c.x-triangle.a.x)*(y-triangle.a.y)/(triangle.c.y-triangle.a.y);
-
-                min_z = triangle.a.z + (triangle.b.z-triangle.a.z)*(y-triangle.a.y)/(triangle.b.y-triangle.a.y);
-                max_z = triangle.a.z + (triangle.c.z-triangle.a.z)*(y-triangle.a.y)/(triangle.c.y-triangle.a.y);
-
-                if( min_x > max_x ) {
-                    swap(min_x, max_x);
-                    swap(min_z, max_z);
-                }
-            }
-
-            min_x = max(min_x, box_left);
-            max_x = min(max_x, box_right);
-            
-
-            for(double x=min_x; x<=max_x; x+=dx){
-                if( max_x == min_x ) continue;
-
-                int i = (Top_Y-y)/dy;
-                int j = (x-Left_X)/dx;
-                
-                double z = min_z + (max_z-min_z)*(x-min_x)/(max_x-min_x);
-                // cout<<z<<'\n';
-                if( z < z_buffer[i][j] and z>Z_min ){
-                    z_buffer[i][j] = z;
-                    // cout<<i<<" "<<j<<'\n';
-                    image.set_pixel(j, i, triangle.color.r, triangle.color.g , triangle.color.b);
-                }
-                
-            }
-        }
-
-
-        min_y = triangle.b.y;
-        max_y = triangle.c.y;
-
-        //cout<<"y range "<<min_y<<" "<<max_y<<endl;
-       
-        min_y = max(min_y, box_bottom);
-        max_y = min(max_y, box_top);
-
-       // cout<<"y range "<<min_y<<" "<<max_y<<endl;
-
-        // scan conversion
-        for(double y=min_y; y<=max_y; y+=dy){
-           
-            // compute min_x and max_x for this row
-            double min_x = 0;
-            double max_x = -1;
-            double min_z = 0;
-            double max_z = -1;
-
-
-            if( triangle.b.y != triangle.c.y and triangle.a.y != triangle.c.y ){
-                min_x = triangle.c.x + (triangle.b.x-triangle.c.x)*(y-triangle.c.y)/(triangle.b.y-triangle.c.y);
-                max_x = triangle.a.x + (triangle.c.x-triangle.a.x)*(y-triangle.a.y)/(triangle.c.y-triangle.a.y);
-
-                min_z = triangle.c.z + (triangle.b.z-triangle.c.z)*(y-triangle.c.y)/(triangle.b.y-triangle.c.y);
-                max_z = triangle.a.z + (triangle.c.z-triangle.a.z)*(y-triangle.a.y)/(triangle.c.y-triangle.a.y);
-
-                if( min_x > max_x ) {
-                    swap(min_x, max_x);
-                    swap(min_z, max_z);
-                }
-            }
-            min_x = max(min_x, box_left);
-            max_x = min(max_x, box_right);
-            // cout<<min_x<<" "<<max_x<<" "<<min_z<<" "<<max_z<<'\n';
-
-            for(double x=min_x; x<=max_x; x+=dx){
-                if( max_x == min_x ) continue;
-                
-                int i = (Top_Y-y)/dy;
-                int j = (x-Left_X)/dx;
-                
-                double z = min_z + (max_z-min_z)*(x-min_x)/(max_x-min_x);
-                cout<<z<<" "<<triangle.color.r<<" "<< triangle.color.g<<" "<< triangle.color.b<<" "<<triangle.c<<'\n';
-                // cout<<"********************"<<'\n';
-                if( z < z_buffer[i][j] and z>Z_min ){
-                    z_buffer[i][j] = z;
-                    // cout<<x<<" "<<triangle.color.r<<" "<< triangle.color.g<<" "<< triangle.color.b<<" "<<triangle.c<<'\n';
-                    // cout<<z<<'\n';
-                    image.set_pixel(j, i, triangle.color.r, triangle.color.g , triangle.color.b);
-                }
-                
-            }
-        }
-
-    }
-    image.save_image("out.bmp");
-
-    for(int i=0; i<screen_height; i++){
-        for(int j=0; j<screen_width; j++){
-            if (z_buffer[i][j] < Z_max) {
-                fout << setprecision(6) << fixed << z_buffer[i][j] << "\t";
-            }
-        }
-        fout<<endl;
-    }
-
-
+    fin >> screen_width >> screen_height;
+    // cout<<screen_width<<" "<<screen_height<<'\n';
+    vector<Triangle> triMat;
     fin.close();
-    fin2.close();
+    fin.open("stage3.txt");
+    for (int i = 0; i < count; i++)
+    {
+        Point p1, p2, p3;
+        fin >> p1 >> p2 >> p3;
+        // //debugging
+        // cout << p1 << endl;
+        // cout << p2 << endl;
+        // cout << p3 << endl;
+        // cout << endl;
+        Triangle t(p1, p2, p3);
+        triMat.push_back(t);
+        // cout<<t<<'\n';
+    }
+    fin.close();
+    // 2. Initialize z-buffer and frame buffer
+    double xLeft = -1, xRight = 1, yUp = 1, yDown = -1, zFront = -1, zRear = 1;
+    double dx = (xRight - xLeft) / screen_width;
+    double dy = (yUp - yDown) / screen_height;
+    // center of attention
+    double yMaxCenter = yUp - dy / 2;
+    double yMinCenter = yDown + dy / 2;
+    double xMinCenter = xLeft + dx / 2;
+    double xMaxCenter = xRight - dx / 2;
+    // cout<<
+    vector<vector<double>> zBuffer(screen_height, vector<double>(screen_width, zRear));
+    bitmap_image img(screen_width, screen_height);
+    for (int i = 0; i < screen_width; i++)
+    {
+        for (int j = 0; j < screen_height; j++)
+        {
+            img.set_pixel(i, j, 0, 0, 0);
+        }
+    }
+    // 3. Apply procedure
+    fout.open("namumkin.txt");
+    for (int i = 0; i < count; i++)
+    {
+        Triangle t = triMat[i];
+        double minX = min(min(t.vertices[0].x, t.vertices[1].x), t.vertices[2].x);
+        double maxX = max(max(t.vertices[0].x, t.vertices[1].x), t.vertices[2].x);
+        double minY = min(min(t.vertices[0].y, t.vertices[1].y), t.vertices[2].y);
+        double maxY = max(max(t.vertices[0].y, t.vertices[1].y), t.vertices[2].y);
+        // cout<<minX<<" "<<maxX<<" "<<minY<<" "<<maxY<<'\n';
+        // after clipping, we need clipping because in case the object is outside our bounded box
+        minX = max(minX, xMinCenter);
+        maxX = min(maxX, xMaxCenter);
+        minY = max(minY, yMinCenter);
+        maxY = min(maxY, yMaxCenter);
+        // fout<<minY<<" "<<maxY<<'\n';
+        // cout<<minX<<" "<<maxX<<" "<<minY<<" "<<maxY<<'\n';
+        // what is the center of the box where minY, maxY are located?
+        int topScanLineRow = round((yMaxCenter - maxY) / dy);
+        int bottomScanLineRow = round((yMaxCenter - minY) / dy);
+        // cout<<topScanLineRow<<" "<<bottomScanLineRow<<'\n';
+
+        for (int top = topScanLineRow; top <= bottomScanLineRow; top++)
+        {
+            if(topScanLineRow==bottomScanLineRow) continue;
+            double ys = yMaxCenter - top * dy;
+            double left_intersecting_x=0, left_intersecting_z=0, right_intersecting_x=0, right_intersecting_z=0;
+            // cout<<ys<<'\n';
+            if (t.vertices[0].y == t.vertices[1].y)
+                continue;
+            if (ys >= t.vertices[1].y && ys <= t.vertices[0].y)
+            {
+                left_intersecting_x = t.vertices[0].x + ((t.vertices[0].x - t.vertices[1].x) * (t.vertices[0].y - ys)) / (t.vertices[1].y - t.vertices[0].y);
+                left_intersecting_z = t.vertices[0].z + ((t.vertices[0].z - t.vertices[1].z) * (t.vertices[0].y - ys)) / (t.vertices[1].y - t.vertices[0].y);
+            }
+            if (t.vertices[0].y == t.vertices[2].y)
+                continue;
+            if (ys >= t.vertices[2].y && ys <= t.vertices[0].y)
+            {
+                right_intersecting_x = t.vertices[0].x + ((t.vertices[0].x - t.vertices[2].x) * (t.vertices[0].y - ys)) / (t.vertices[2].y - t.vertices[0].y);
+                right_intersecting_z = t.vertices[0].z + ((t.vertices[0].z - t.vertices[2].z) * (t.vertices[0].y - ys)) / (t.vertices[2].y - t.vertices[0].y);
+            }
+            double org_left_x = left_intersecting_x, org_right_x = right_intersecting_x;
+            if (left_intersecting_x < minX)
+            {
+                left_intersecting_x = minX;
+            }
+            if (left_intersecting_x > maxX)
+            {
+                left_intersecting_x = maxX;
+            }
+            if (right_intersecting_x < minX)
+            {
+                right_intersecting_x = minX;
+            }
+            if (right_intersecting_x > maxX)
+            {
+                right_intersecting_x = maxX;
+            }
+            // fout<<left_intersecting_x<<" "<<right_intersecting_x<<" "<<left_intersecting_z<<" "<<right_intersecting_z<<'\n';
+            
+            int leftScanLineCol = round((left_intersecting_x - xMinCenter) / dx);
+            int rightScanLineCol = round((right_intersecting_x - xMinCenter) / dx);
+            // fout << leftScanLineCol << " " << rightScanLineCol << endl;
+            
+            for (int left = leftScanLineCol; left <= rightScanLineCol; left++)
+            {
+                if(leftScanLineCol==rightScanLineCol) continue;
+                // counter++;
+                // cout<<counter<<":";
+                double xp = xMinCenter + left * dx;
+                // fout<<xp<<'\n';
+                double temp = ((left_intersecting_z - right_intersecting_z) * (xp - left_intersecting_x)) / (left_intersecting_x - right_intersecting_x);
+                double zp = temp + left_intersecting_z;
+                fout<<zp<<" "<<t.color[0]<<" "<<t.color[1]<<" "<<t.color[2]<<" "<<t.vertices[0]<<'\n';
+                // fout<<"********************"<<'\n';
+                if (zp < zBuffer[top][left] && zp >= zFront)
+                {
+                    zBuffer[top][left] = zp;
+                    // fout<<zp<<" "<<t.color[0]<<" "<<t.color[1]<<" "<<t.color[2]<<" "<<t.vertices[0]<<'\n';
+                    img.set_pixel(left, top, t.color[0], t.color[1], t.color[2]);
+                }
+            }
+        }
+    }
     fout.close();
-    
-    z_buffer.clear();
-    z_buffer.shrink_to_fit();
-    
+    fout.open("z_buffer.txt");
+    for (int i = 0; i < screen_height; i++)
+    {
+        for (int j = 0; j < screen_width; j++)
+        {
+            if (zBuffer[i][j] < zRear)
+            {
+                fout << setprecision(6) << fixed << zBuffer[i][j] << "\t";
+            }
+        }
+        fout << endl;
+    }
+
+    fout.close();
+
+    img.save_image("out.bmp");
+
+    zBuffer.clear();
+    zBuffer.shrink_to_fit();
+
     return 0;
-
-
 }
