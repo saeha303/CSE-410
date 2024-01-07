@@ -1,5 +1,6 @@
 #include <bits/stdc++.h>
 #define pi 2.0 * acos(0.0)
+#define deg_to_rad(angle) angle*pi/180
 using namespace std;
 int counter = 0;
 class Point
@@ -162,9 +163,7 @@ public:
     }
     Point RodriguesFormula(Point x, Point a, double angle)
     {
-        double angleRad = angle * pi / 180;
-        // Point t=a&x;
-        // cout<<t<<'\n';
+        double angleRad = deg_to_rad(angle);
         return x * cos(angleRad) + a * (a * x) * (1 - cos(angleRad)) + (a & x) * sin(angleRad);
     }
     void buildRotationMat(double angle, Point p)
@@ -328,5 +327,11 @@ public:
         out << fixed << setprecision(7) << p.vertices[1].x << " " << p.vertices[1].y << " " << p.vertices[1].z << "//";
         out << fixed << setprecision(7) << p.vertices[2].x << " " << p.vertices[2].y << " " << p.vertices[2].z;
         return out;
+    }
+    friend istream &operator>>(istream &in, Triangle &t)
+    {
+        in >> t.vertices[0] >> t.vertices[1] >> t.vertices[2];
+        // t.arrangeVertices();
+        return in;
     }
 };

@@ -3,5 +3,5 @@ rm stage2.txt
 rm stage3.txt
 rm z_buffer.txt
 rm out.bmp
-g++ copy.cpp -o copy -lglut -lGLU -lGL
+g++ raster.cpp -o copy -lglut -lGLU -lGL
 ./copy

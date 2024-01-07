@@ -1,354 +1,332 @@
-// include headers
-
-#include "utils.h"
-#include "bitmap_image.hpp"
-
-int main()
+#include <bits/stdc++.h>
+#define pi 2.0 * acos(0.0)
+using namespace std;
+int counter = 0;
+class Point
 {
-    PT eye,look,up;
-
-    ifstream fin("scene.txt");
-    ofstream fout("stage1.txt");
-
-    fin >> eye >> look >> up;
-   
-    double fovY, aspectRatio, near, far;
-    fin >> fovY >> aspectRatio >> near >> far;
-
-    /**
-     * @brief STAGE 1 : Modeling Transformation
-     * 
-     */
-
-    stack<Matrix>stk;
-    Matrix IDT(4);
-    IDT.createIdentity();
-    stk.push(IDT);
-
-    int num_triangles = 0;
-
-    while(true)
+public:
+    double x, y, z, w;
+    bool taken = false;
+    Point(double x, double y, double z, double w) : x(x), y(y), z(z), w(w) {}
+    Point()
     {
-        string cmd;
-        fin>>cmd;
+        x = y = z = 0;
+        w = 1;
+    }
+    friend istream &operator>>(istream &in, Point &p)
+    {
+        in >> p.x >> p.y >> p.z;
+        return in;
+    }
+    void divideByW()
+    {
+        x /= w;
+        y /= w;
+        z /= w;
+        w /= w;
+        // cout<<x<<","<<y<<","<<z<<","<<w<<'\n';
+    }
+    double len()
+    {
+        return sqrt(x * x + y * y + z * z);
+    }
+    void normalize()
+    {
+        double l = len();
+        x /= l;
+        y /= l;
+        z /= l;
+    }
+    Point operator*(double t) // scalar multiplication
+    {
+        return Point(x * t, y * t, z * t, 1);
+    }
+    double operator*(Point t) // dot multiplication
+    {
+        return x * t.x + y * t.y + z * t.z;
+    }
+    Point operator+(Point t)
+    {
+        return Point(x + t.x, y + t.y, z + t.z, 1);
+    }
+    Point operator-(Point t)
+    {
+        return Point(x - t.x, y - t.y, z - t.z, 1);
+    }
+    Point operator&(Point t) // cross multiplication
+    {
+        return Point(y * t.z - z * t.y, z * t.x - x * t.z, x * t.y - y * t.x, 1);
+    }
+    friend ostream &operator<<(ostream &out, Point &p)
+    {
+        out << fixed << setprecision(7) << p.x << " " << p.y << " " << p.z;
+        return out;
+    }
 
-        if(cmd == "triangle")
+    ~Point()
+    {
+    }
+};
+class Matrix
+{
+public:
+    vector<Point> mat;
+    int order;
+    Matrix()
+    {
+        order = 4;
+        mat.resize(order);
+    }
+    Matrix(int order)
+    {
+        this->order = order;
+        mat.resize(order);
+    }
+    Matrix operator*(Matrix other)
+    {
+        Matrix temp(order);
+        for (int i = 0; i < order; i++)
         {
-            PT p1,p2,p3;
-            fin>>p1>>p2>>p3;
-
-            p1 = stk.top()*p1;
-            p2 = stk.top()*p2; 
-            p3 = stk.top()*p3;
-
-            fout<<p1<<endl;
-            fout<<p2<<endl;
-            fout<<p3<<endl; 
-            fout<<endl; 
-
-            num_triangles++; 
-        }
-        else if(cmd == "translate")
-        {
-            PT p;
-            fin>>p;
-
-            Matrix T(4);
-            T.createTranslation(p);
-            Matrix M = stk.top()*T;
-            stk.pop();
-            stk.push(M);
-        }
-        else if(cmd == "scale")
-        {
-            PT p;
-            fin>>p.x>>p.y>>p.z;
-
-            Matrix S(4);
-            S.createScaling(p);
-            Matrix M = stk.top()*S;
-            stk.pop();
-            stk.push(M);
-        }
-        else if(cmd == "rotate")
-        {
-            double angle;
-            PT p;
-            fin>>angle>>p.x>>p.y>>p.z;
-
-            Matrix R(4);
-            R.createRotation(angle,p);
-            Matrix M = stk.top()*R;
-            stk.pop();
-            stk.push(M);
-        }
-        else if(cmd == "push")
-        {
-            stk.push(stk.top());
-        }
-        else if(cmd == "pop")
-        {
-            if(stk.empty())
+            for (int j = 0; j < order; j++)
             {
-                cout<<"Error: stack is empty"<<endl;
-                return 0;
-            }
-
-            stk.pop();
-        }
-        else if(cmd == "end")
-        {
-            break;
-        }
-        else
-        {
-            cout<<"Invalid Command"<<endl;
-            break;
-        }
-    }
-
-    fin.close();
-    fout.close();
-
-
-    /**
-     * @brief STAGE 2 : View Transformation
-     * 
-     */
-
-    fin.open("stage1.txt");
-    fout.open("stage2.txt");
-
-    Matrix viewTransform(4);
-    viewTransform.createView(eye,look,up);
-
-    for(int i=0;i<num_triangles;i++)
-    {
-        PT p1,p2,p3;
-        fin>>p1>>p2>>p3;
-
-        p1 = viewTransform*p1;
-        p2 = viewTransform*p2;
-        p3 = viewTransform*p3;
-
-        fout<<p1<<endl;
-        fout<<p2<<endl;
-        fout<<p3<<endl;
-        fout<<endl;
-    }
-
-    fin.close();
-    fout.close();
-
-    
-    /**
-     * @brief STAGE 3 : Projection Transformation
-     * 
-     */
-
-    fin.open("stage2.txt");
-    fout.open("stage3.txt");
-
-    Matrix projTransform(4);
-    projTransform.createProjection(fovY,aspectRatio,near,far);
-
-    for(int i=0;i<num_triangles;i++)
-    {
-        PT p1,p2,p3;
-        fin>>p1>>p2>>p3;
-
-        p1 = projTransform*p1;
-        p2 = projTransform*p2;
-        p3 = projTransform*p3;
-
-        fout<<p1<<endl;
-        fout<<p2<<endl;
-        fout<<p3<<endl;
-        fout<<endl;
-    }
-
-    fin.close();
-    fout.close();
-
-    /**
-     * @brief STAGE 4 : Z BUFFER Algorithm 
-     * 
-     */
-
-    fin.open("config.txt");
-    fout.open("z_buffer.txt");
-
-    int screenWidth, screenHeight;
-    double boxLeft, boxRight, boxUp, boxDown;
-    double zMin, zMax;
-
-    fin>>screenWidth>>screenHeight;
-    boxLeft=-1;boxDown=-1;
-    zMin=0;zMax=2;
-
-    fin.close();
-
-    // calculate necessary variables
-
-    boxRight = -boxLeft;
-    boxUp = -boxDown;
-
-    double dx = (boxRight-boxLeft)/screenWidth;
-    double dy = (boxUp-boxDown)/screenHeight;
-
-    double topY = boxUp - dy/2; // center of top left pixel
-    double bottomY = boxDown + dy/2;
-    double leftX = boxLeft + dx/2;
-    double rightX = boxRight - dx/2;
-
-    // create z buffer with each cell initialized to zMax
-    vector<vector<double>> z_buffer(screenHeight,vector<double>(screenWidth,zMax));
-
-    // init image as all black cells
-    bitmap_image image(screenWidth, screenHeight);
-    for(int i=0;i<screenWidth;i++)
-    {
-        for(int j=0;j<screenHeight;j++)
-        {
-            image.set_pixel(i,j,0,0,0);
-        }
-    }
-
-    fin.open("stage3.txt");
-    fout.open("mumkin.txt");
-    for(int tr=0;tr<num_triangles;tr++)
-    {
-        PT p1,p2,p3;
-        fin>>p1>>p2>>p3;
-
-        Triangle t;
-        t.points[0] = p1;
-        t.points[1] = p2;
-        t.points[2] = p3;
-
-        double minX, maxX, minY, maxY;
-
-        // calculate min max values of triangles
-        minX = min(min(p1.x,p2.x),p3.x);
-        maxX = max(max(p1.x,p2.x),p3.x);
-        minY = min(min(p1.y,p2.y),p3.y);
-        maxY = max(max(p1.y,p2.y),p3.y);
-        // cout<<minX<<" "<<maxX<<" "<<minY<<" "<<maxY<<'\n';
-        // clip appropriately
-        minX = max(minX,leftX);
-        maxX = min(maxX,rightX);
-
-        minY = max(minY,bottomY);
-        maxY = min(maxY,topY);
-        // cout<<minX<<" "<<maxX<<" "<<minY<<" "<<maxY<<'\n';
-        // find the Y value to start iterating from
-        int startY = round((topY-minY)/dy);
-        int endY = round((topY-maxY)/dy);
-        // cout<<startY<<" "<<endY<<'\n';
-        // start doing scanline along the specified Y values
-        for(int scanY = endY;scanY <= startY; scanY++)
-        {
-            double ys = topY - scanY*dy;
-            // cout<<ys<<'\n';
-            vector<double>x_ab(2),z_ab(2);
-            int cnt = 0;
-
-            for(int i=0;i<3;i++)
-            {
-                // (0,1) (1,2) (2,0)
-                int j = (i+1)%3;
-
-                if(t.points[i].y == t.points[j].y) continue;
-
-                // check if the segments intersects with the scanline, can be atmost 2 of them
-                if(ys >= min(t.points[i].y,t.points[j].y) && ys <= max(t.points[i].y,t.points[j].y))
+                for (int k = 0; k < order; k++)
                 {
-                    // formula from slide ;-;
-                    x_ab[cnt] = t.points[i].x - (t.points[i].x - t.points[j].x)*(t.points[i].y - ys)/(t.points[i].y - t.points[j].y);
-                    z_ab[cnt] = t.points[i].z - (t.points[i].z - t.points[j].z)*(t.points[i].y - ys)/(t.points[i].y - t.points[j].y);
-                    cnt++;
-                }
-            }
-            // cout<<z_ab[0]<<" "<<z_ab[1]<<'\n';
-            vector<double>tempx_ab(2);
-            tempx_ab = x_ab;
-
-            for(int i=0;i<2;i++)
-            {
-                // clip x on both sides
-                if(x_ab[i]<minX) x_ab[i] = minX;
-                if(x_ab[i]>maxX) x_ab[i] = maxX;
-            }
-
-            // re-adjust
-            z_ab[0] = z_ab[1] - (z_ab[1] - z_ab[0])*(tempx_ab[1] - x_ab[0])/(tempx_ab[1] - tempx_ab[0]);
-            z_ab[1] = z_ab[1] - (z_ab[1] - z_ab[0])*(tempx_ab[1] - x_ab[1])/(tempx_ab[1] - tempx_ab[0]);
-
-
-            // a is the left point, b is the right one according to the image of slide
-            double xa,za,xb,zb;
-
-            xa = x_ab[0];
-            xb = x_ab[1];
-
-            za = z_ab[0];
-            zb = z_ab[1];
-
-            // cout<<xa<<" "<<xb<<" "<<za<<" "<<zb<<endl;
-
-            if(x_ab[0] >= x_ab[1])
-            {
-                swap(xa,xb);
-                swap(za,zb);
-                swap(tempx_ab[0],tempx_ab[1]);
-            }
-            // cout<<xa<<" "<<xb<<" "<<za<<" "<<zb<<'\n';
-            
-            int startX = round((xa-leftX)/dx);
-            int endX = round((xb-leftX)/dx);
-            // cout << startX << " " << endX << endl;
-            // for a specific scanline, iterate through all the pixels along X
-            
-            for(int scanX=startX;scanX<=endX;scanX++)
-            {
-                double xp = leftX + scanX*dx;
-                // cout<<xp<<'\n';
-                // formula from slide again ;-;
-                double zp = zb - (zb-za)*((xb-xp)/(xb-xa));
-                cout<<zp<<'\n';
-                if (zp < zMin) continue;
-
-                // assert for double checking
-                assert(scanY >= 0 && scanY < screenHeight);
-                assert(scanX >= 0 && scanX < screenWidth);
-
-                if(zp < z_buffer[scanY][scanX])
-                {
-                    z_buffer[scanY][scanX] = zp;
-                    image.set_pixel(scanX,scanY,t.rgb[0],t.rgb[1],t.rgb[2]);
+                    temp.mat[i][j] += mat[i][k] * other.mat[k][j];
                 }
             }
         }
+        return temp;
     }
-    fout.close();
-    for (int i = 0; i < screenHeight; i++) 
+    Point operator*(Point other)
     {
-        for (int j = 0; j < screenWidth; j++)
+        double sum[4], temp[4];
+        temp[0] = other.x;
+        temp[1] = other.y;
+        temp[2] = other.z;
+        temp[3] = other.w;
+        for (int i = 0; i < order; i++)
         {
-            if (z_buffer[i][j] < zMax)
+            sum[i] = 0;
+            for (int j = 0; j < order; j++)
             {
-                fout << setprecision(6) << fixed << z_buffer[i][j] << "\t";
+                sum[i] += mat[i][j] * temp[j];
             }
         }
-        fout << endl;
+        Point result(sum[0], sum[1], sum[2], sum[3]);
+        // cout<<"in *: ";
+        // cout<<result<<endl;
+        result.divideByW();
+        // cout<<"after divide: ";
+        // cout<<result<<endl;
+        return result;
     }
+    void buildIdentityMat()
+    {
+        for (int i = 0; i < order; i++)
+        {
+            for (int j = 0; j < order; j++)
+            {
+                if (i == j)
+                    mat[i][j] = 1;
+                else
+                    mat[i][j] = 0;
+            }
+        }
+    }
+    void prepareMat()
+    {
+        for (int i = 0; i < order; i++)
+        {
+            for (int j = 0; j < order; j++)
+            {
+                mat[i][j] = 0;
+            }
+        }
+        mat[3][3] = 1;
+    }
+    void buildTranslationMat(Point p)
+    {
+        // prepareMat();
+        buildIdentityMat();
+        mat[0][3] = p.x;
+        mat[1][3] = p.y;
+        mat[2][3] = p.z;
+    }
+    void buildScalingMat(Point p)
+    {
+        // prepareMat();
+        buildIdentityMat();
+        mat[0][0] = p.x;
+        mat[1][1] = p.y;
+        mat[2][2] = p.z;
+    }
+    Point RodriguesFormula(Point x, Point a, double angle)
+    {
+        double angleRad = angle * pi / 180;
+        // Point t=a&x;
+        // cout<<t<<'\n';
+        return x * cos(angleRad) + a * (a * x) * (1 - cos(angleRad)) + (a & x) * sin(angleRad);
+    }
+    void buildRotationMat(double angle, Point p)
+    {
+        // prepareMat();
+        buildIdentityMat();
+        Point a(p.x, p.y, p.z, 1);
+        a.normalize();
+        Point i(1, 0, 0, 1);
+        Point j(0, 1, 0, 1);
+        Point k(0, 0, 1, 1);
+        Point c1 = RodriguesFormula(i, a, angle);
+        Point c2 = RodriguesFormula(j, a, angle);
+        Point c3 = RodriguesFormula(k, a, angle);
 
-    fout.close();
+        mat[0][0] = c1.x;
+        mat[1][0] = c1.y;
+        mat[2][0] = c1.z;
 
-    image.save_image("out.bmp");
+        mat[0][1] = c2.x;
+        mat[1][1] = c2.y;
+        mat[2][1] = c2.z;
 
-    z_buffer.clear();
-    z_buffer.shrink_to_fit();
+        mat[0][2] = c3.x;
+        mat[1][2] = c3.y;
+        mat[2][2] = c3.z;
+    }
+    void buildViewMat(Point eye, Point r, Point u, Point l)
+    {
+        buildIdentityMat();
+        mat[0][0] = r.x;
+        mat[0][1] = r.y;
+        mat[0][2] = r.z;
 
-    return 0;
+        mat[1][0] = u.x;
+        mat[1][1] = u.y;
+        mat[1][2] = u.z;
+
+        mat[2][0] = -l.x;
+        mat[2][1] = -l.y;
+        mat[2][2] = -l.z;
+        Matrix t;
+        Point p(-eye.x, -eye.y, -eye.z, 1);
+        t.buildTranslationMat(p);
+        *this = (*this) * t;
+    }
+    void buildProjectionMat(double near, double far, double r, double t)
+    {
+        buildIdentityMat();
+        mat[0][0] = near / r;
+        mat[1][1] = near / t;
+        mat[2][2] = -(far + near) / (far - near);
+        mat[3][2] = -1;
+        mat[2][3] = -2.0 * far * near / (far - near);
+        mat[3][3] = 0;
+    }
+    ~Matrix()
+    {
+    }
+};
+static unsigned long int g_seed = 1;
+inline int random_()
+{
+    g_seed = (214013 * g_seed + 2531011);
+    return (g_seed >> 16) & 0x7FFF;
 }
+
+class Triangle
+{
+public:
+    int id;
+    Point vertices[3];
+    int color[3];
+
+    Triangle()
+    {
+        id=counter++;
+        pickColor();
+    }
+
+    Triangle(Point p1, Point p2, Point p3)
+    {
+        id=counter++;
+        vertices[0] = p1;
+        vertices[1] = p2;
+        vertices[2] = p3;
+        // // debugging
+        // cout << p1 << endl;
+        // cout << p2 << endl;
+        // cout << p3 << endl;
+        // cout << endl;
+        // cout<<*this<<'\n';
+        arrangeVertices();
+        pickColor();
+    }
+    void pickColor()
+    {
+        color[0] = random_();
+        color[1] = random_();
+        color[2] = random_();
+    }
+    int maxY()
+    {
+        int idx = -1;
+        double maxY = (double)INT_MIN;
+        for (int i = 0; i < 3; i++)
+        {
+            if ((vertices[i].y > maxY && !vertices[i].taken) || (vertices[i].y == maxY && vertices[i].x < vertices[idx].x && !vertices[i].taken))
+            {
+                idx = i;
+                maxY = vertices[i].y;
+            }
+        }
+        return idx;
+    }
+    int minX()
+    {
+        int idx = -1;
+        double minX = (double)INT_MAX;
+        for (int i = 0; i < 3; i++)
+        {
+            if (vertices[i].x < minX && !vertices[i].taken)
+            {
+                idx = i;
+                minX = vertices[i].x;
+            }
+        }
+        return idx;
+    }
+    void arrangeVertices()
+    {
+        int count = 0;
+        int idx = maxY();
+        Point maxY = vertices[idx];
+        vertices[idx].taken = true;
+        idx = minX();
+        Point minX = vertices[idx];
+        vertices[idx].taken = true;
+        Point other;
+        for (int i = 0; i < 3; i++)
+        {
+            if (!vertices[i].taken)
+            {
+                count++;
+                other = vertices[i];
+            }
+        }
+        assert(count == 1);
+        vertices[0] = maxY;
+        vertices[1] = minX;
+        vertices[2] = other;
+        // cout<<"***********"<<'\n';
+        // for(int i=0;i<3;i++){
+        //     cout<<vertices[i]<<'\n';
+        // }
+        // cout<<"^^^^^^^^^^^"<<'\n';
+    }
+    friend ostream &operator<<(ostream &out, Triangle &p)
+    {
+        out << fixed << setprecision(7) << p.vertices[0].x << " " << p.vertices[0].y << " " << p.vertices[0].z << "//";
+        out << fixed << setprecision(7) << p.vertices[1].x << " " << p.vertices[1].y << " " << p.vertices[1].z << "//";
+        out << fixed << setprecision(7) << p.vertices[2].x << " " << p.vertices[2].y << " " << p.vertices[2].z;
+        return out;
+    }
+};

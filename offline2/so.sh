@@ -3,5 +3,5 @@ rm stage2.txt
 rm stage3.txt
 rm z_buffer.txt
 rm out.bmp
-g++ raster.cpp -o main -lglut -lGLU -lGL
+g++ foo.cpp -o main -lglut -lGLU -lGL
 ./main
