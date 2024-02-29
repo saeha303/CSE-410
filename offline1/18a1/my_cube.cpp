@@ -190,7 +190,7 @@ void drawSpheres()
         glPopMatrix();
     }
     //perpendicular to z plane
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 1; i++)
     {
         glPushMatrix();
         {
@@ -220,19 +220,19 @@ void drawOctahedron()
         glPopMatrix();
     }
 
-    for (int i = 0; i < 4; i++)
-    {
+    // for (int i = 0; i < 4; i++)
+    // {
 
-        glPushMatrix();
-        {
-            glColor3f(i % 2, (i + 1) % 2, 1.0f);
-            glRotatef(90 * i, 0, 0, 1);
-            glRotatef(180, 1, 1, 0);
-            glTranslatef(diff, diff, diff);
-            drawTriangle(triLen);
-        }
-        glPopMatrix();
-    }
+    //     glPushMatrix();
+    //     {
+    //         glColor3f(i % 2, (i + 1) % 2, 1.0f);
+    //         glRotatef(90 * i, 0, 0, 1);
+    //         glRotatef(180, 1, 1, 0);
+    //         glTranslatef(diff, diff, diff);
+    //         drawTriangle(triLen);
+    //     }
+    //     glPopMatrix();
+    // }
 }
 
 void display()
