@@ -2,8 +2,8 @@
 #include "bitmap_image.hpp"
 #include <GL/glut.h>
 #define pi 2.0 * acos(0.0)
-#define deg_to_rad(angle) angle*pi/180
-#define THRESHOLD 1e-3
+#define deg_to_rad(angle) angle *pi / 180
+#define epsilon 1e-4
 using namespace std;
 extern int recursionLevel;
 class Object;
@@ -226,7 +226,7 @@ public:
 
             double dist_from_light = lightDirection.len();
             // consider it zero
-            if (dist_from_light < THRESHOLD)
+            if (dist_from_light < epsilon)
                 continue;
             Ray ray_l = Ray(pl->light_pos, lightDirection);
             bool isInShadow = false;
@@ -234,7 +234,7 @@ public:
             for (Object *obj : objects)
             {
                 double temp2 = obj->getIntersectionPoint_t(ray_l, color, 0);
-                if (temp2 > 0 && temp2 + THRESHOLD < dist_from_light)
+                if (temp2 > 0 && temp2 + epsilon < dist_from_light)
                 {
 
                     // cout << "isInShadow" << endl;
@@ -271,7 +271,7 @@ public:
                 Ray ray_l = Ray(sl->point_light.light_pos, lightDirection);
 
                 double dist_from_light = lightDirection.len();
-                if (dist_from_light < THRESHOLD)
+                if (dist_from_light < epsilon)
                     continue;
 
                 bool isInShadow = false;
@@ -279,7 +279,7 @@ public:
                 for (Object *obj : objects)
                 {
                     double temp2 = obj->getIntersectionPoint_t(ray_l, color, 0);
-                    if (temp2 > 0 && temp2 + THRESHOLD < dist_from_light)
+                    if (temp2 > 0 && temp2 + epsilon < dist_from_light)
                     {
                         isInShadow = true;
                         break;
@@ -304,7 +304,8 @@ public:
 
             Ray normal = getNormal(intersectionPoint, ray);
             Ray ray_r = Ray(intersectionPoint, ray.dir - normal.dir * 2 * (ray.dir * normal.dir));
-            ray_r.start = ray_r.start + ray_r.dir * THRESHOLD;
+            // fix the start point a bit above the circle
+            ray_r.start = ray_r.start + ray_r.dir * epsilon;
             Object *obj = NULL;
             double t = -1;
             double tMin = 1e9;
@@ -444,7 +445,7 @@ public:
     }
     friend ostream &operator<<(ostream &out, Sphere &o)
     {
-        out << o.reference_point << o.length;
+        out << o.reference_point << ' ' << o.length;
         for (int i = 0; i < 3; i++)
             out << o.color[i] << ' ';
         out << endl;
@@ -548,9 +549,7 @@ public:
     }
     friend ostream &operator<<(ostream &out, Triangle &o)
     {
-        out << o.vertices[0] << endl;
-        out << o.vertices[1] << endl;
-        out << o.vertices[2] << endl;
+        out << o.vertices[0] << ' ' << o.vertices[1] << ' ' << o.vertices[2] << endl;
         for (int i = 0; i < 3; i++)
             out << o.color[i] << ' ';
         out << endl;
@@ -573,39 +572,30 @@ public:
 
     virtual Ray getNormal(Point point, Ray ray)
     {
-        Point dir(A * point.x * 2.0 + D * point.y + E * point.z + G,
-                  B * point.y * 2.0 + D * point.x + F * point.z + H,
-                  C * point.z * 2.0 + E * point.x + F * point.y + I, 1.0);
-
+        double x = A * point.x * 2.0 + D * point.y + E * point.z + G;
+        double y = B * point.y * 2.0 + D * point.x + F * point.z + H;
+        double z = C * point.z * 2.0 + E * point.x + F * point.y + I;
+        Point dir(x, y, z, 1.0);
         return Ray(point, dir);
     }
 
-    bool checkReferenceCube(Point point)
+    bool insideReferenceCube(Point point)
     {
-        if (fabs(length) > THRESHOLD)
+        if (length > 0)
         {
-            if (point.x < reference_point.x)
-                return false;
-            if (point.x > reference_point.x + length)
+            if (point.x < reference_point.x || point.x > reference_point.x + length)
                 return false;
         }
-
-        if (fabs(width) > THRESHOLD)
+        if (width > 0)
         {
-            if (point.y < reference_point.y)
-                return false;
-            if (point.y > reference_point.y + width)
+            if (point.y < reference_point.y || point.y > reference_point.y + width)
                 return false;
         }
-
-        if (fabs(height) > THRESHOLD)
+        if (height > 0)
         {
-            if (point.z < reference_point.z)
-                return false;
-            if (point.z > reference_point.z + height)
+            if (point.z < reference_point.z || point.z > reference_point.z + height)
                 return false;
         }
-
         return true;
     }
 
@@ -635,7 +625,11 @@ public:
             {
                 // cout<<"t1 "<<t1<<endl;
                 Point intersectionPoint = ray.start + ray.dir * t1;
-                if (checkReferenceCube(intersectionPoint))
+                // if (length == 0 || width == 0 || height == 0)
+                // {
+                //     return -1;
+                // }
+                if (insideReferenceCube(intersectionPoint))
                 {
                     return t1;
                 }
@@ -644,7 +638,11 @@ public:
             {
                 // cout<<"t2 "<<t2<<endl;
                 Point intersectionPoint = ray.start + ray.dir * t2;
-                if (checkReferenceCube(intersectionPoint))
+                // if (length == 0 || width == 0 || height == 0)
+                // {
+                //     return -1;
+                // }
+                if (insideReferenceCube(intersectionPoint))
                 {
                     return t2;
                 }
@@ -667,13 +665,13 @@ public:
     }
     friend ostream &operator<<(ostream &out, General &o)
     {
-        out << o.A << o.B << o.C << o.D << o.E << o.F << o.G << o.H << o.I << o.J << endl;
-        out << o.reference_point << o.length << o.width << o.height << endl;
+        out << o.A << ' ' << o.B << ' ' << o.C << ' ' << o.D << ' ' << o.E << ' ' << o.F << ' ' << o.G << ' ' << o.H << ' ' << o.I << ' ' << o.J << endl;
+        out << o.reference_point << ' ' << o.length << ' ' << o.width << ' ' << o.height << endl;
         for (int i = 0; i < 3; i++)
-            out << o.color[i];
+            out << o.color[i] << ' ';
         out << endl;
         for (int i = 0; i < 4; i++)
-            out << o.coefficients[i];
+            out << o.coefficients[i] << ' ';
         out << endl;
         out << o.shine << endl;
         return out;
@@ -683,22 +681,23 @@ public:
 class Floor : public Object
 {
 public:
-    int tiles;
+    int tiles_count;
 
     Floor(int floorWidth, int tileWidth)
     {
-        tiles = floorWidth / tileWidth;
+        tiles_count = floorWidth / tileWidth;
         reference_point = Point(-floorWidth / 2, -floorWidth / 2, 0, 1);
         length = tileWidth;
     }
 
     virtual vector<double> getColorAt(Point point)
     {
-        int tileX = (point.x - reference_point.x) / length;
-        int tileY = (point.y - reference_point.y) / length;
+        int x_side_tile = (point.x - reference_point.x) / length;
+        int y_side_tile = (point.y - reference_point.y) / length;
         vector<double> color(3, 0);
-        if (tileX < 0 || tileX >= tiles || tileY < 0 || tileY >= tiles)
+        if (point.x < reference_point.x || point.x > -reference_point.x || point.y < reference_point.y || point.y > -reference_point.y)
         {
+            // checker board er baire hole kalo
             for (int i = 0; i < 3; i++)
             {
                 color[i] = 0.0;
@@ -706,7 +705,7 @@ public:
             return color;
         }
 
-        if (((tileX + tileY) % 2) == 0)
+        if (((x_side_tile + y_side_tile) % 2) == 0)
         {
             for (int i = 0; i < 3; i++)
             {
@@ -744,9 +743,9 @@ public:
     }
     virtual void draw()
     {
-        for (int i = -tiles/2; i < tiles/2; i++)
+        for (int i = -tiles_count / 2; i < tiles_count / 2; i++)
         {
-            for (int j = -tiles/2; j < tiles/2; j++)
+            for (int j = -tiles_count / 2; j < tiles_count / 2; j++)
             {
                 glPushMatrix();
                 if ((i + j) % 2)
@@ -757,7 +756,7 @@ public:
                 {
                     glColor3f(1.0, 1.0, 1.0);
                 }
-                glTranslatef( (2*i+1)* (length / 2), (2*j+1) * (length / 2), 0);
+                glTranslatef((2 * i + 1) * (length / 2), (2 * j + 1) * (length / 2), 0);
                 drawSquare(length / 2);
                 glPopMatrix();
             }
@@ -767,20 +766,22 @@ public:
     virtual double getIntersectionPoint_t(Ray ray, double *color, int level)
     {
         Point n(0, 0, 1, 1);
-        // double denom = n * ray.dir;
-
-        // if (round(denom * 100) == 0)
-        //     return -1;
-
         double t = -(n * ray.start) / (n * ray.dir);
-
         Point p = ray.start + ray.dir * t;
-
-        if (p.x <= reference_point.x || p.x >= -(reference_point.x) || p.y <= reference_point.y || p.y >= (reference_point.y))
+        if (p.x <= reference_point.x || p.x >= -(reference_point.x) || p.y <= reference_point.y || p.y >= -(reference_point.y))
         {
             return -1;
         }
-
         return t;
     }
 };
+
+void Refract(Point out, Point incidentVec, Point normal, double eta)
+{
+    double N_dot_I = normal * incidentVec;
+    double k = 1.0 - eta * eta * (1.f - N_dot_I * N_dot_I);
+    if (k < 0.f)
+        out = Point(0.0, 0.0, 0.0, 1.0);
+    else
+        out = incidentVec * eta - normal * (eta * N_dot_I + sqrt(k));
+}
